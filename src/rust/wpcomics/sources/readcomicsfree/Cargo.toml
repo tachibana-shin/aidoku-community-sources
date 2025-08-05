@@ -7,6 +7,6 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-aidoku = { git = "https://github.com/Aidoku/aidoku-rs", branch = "legacy" }
+aidoku = { git = "https://github.com/Aidoku/aidoku-rs" }
 wpcomics_template = { path = "../../template" }
 
