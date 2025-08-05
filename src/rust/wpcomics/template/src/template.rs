@@ -61,7 +61,7 @@ fn cache_manga_page(data: &WPComicsSource, url: &str) {
 
 	unsafe {
 		if data.vinahost_protection {
-			CACHED_MANGA = Some(data.request_vinahost(url).data());
+			CACHED_MANGA = Some(data.request_vinahost(url, None).data());
 		} else {
 			let mut req = Request::new(url, HttpMethod::Get);
 			if let Some(user_agent) = data.user_agent {
@@ -249,7 +249,7 @@ impl WPComicsSource {
 			self.manga_listing_pagination,
 			self.manga_listing_extension
 		);
-		self.get_manga_list(url)
+		self.get_manga_list(url, None)
 	}
 
 	pub fn get_manga_details(&self, id: String) -> Result<Manga> {
@@ -382,7 +382,7 @@ impl WPComicsSource {
 	pub fn get_page_list(&self, chapter_id: String) -> Result<Vec<Page>> {
 		let mut pages: Vec<Page> = Vec::new();
 		let url = format!("{}{}", &chapter_id, self.manga_viewer_page_url_suffix);
-		let html = self.request_vinahost(&url).html()?;
+		let html = self.request_vinahost(&url, None).html()?;
 		for (at, page) in html.select(self.manga_viewer_page).array().enumerate() {
 			let page_node = page.as_node().expect("node array");
 			let mut page_url = page_node.attr("data-original").read();

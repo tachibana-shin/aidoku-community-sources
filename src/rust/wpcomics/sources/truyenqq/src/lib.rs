@@ -161,7 +161,7 @@ fn get_manga_list(filters: Vec<Filter>, page: i32) -> Result<MangaPageResult> {
 		)
 	}
 	let headers = &[("Cookie", "visit-read=6806034e0db74-6806034e0db75")];
-	get_instance().get_manga_list(get_search_url(filters, page, Some(headers)))
+	get_instance().get_manga_list(get_search_url(filters, page), Some(headers))
 }
 
 #[get_manga_listing]
