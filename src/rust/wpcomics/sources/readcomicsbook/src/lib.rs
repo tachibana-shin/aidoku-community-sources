@@ -85,7 +85,7 @@ fn get_manga_list(filters: Vec<Filter>, page: i32) -> Result<MangaPageResult> {
 			String::from("https://readcomicsbook.com"),
 			genre,
 			page,
-		))
+		), None)
 	}
 }
 

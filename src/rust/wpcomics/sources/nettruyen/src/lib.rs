@@ -119,7 +119,7 @@ fn get_manga_list(filters: Vec<Filter>, page: i32) -> Result<MangaPageResult> {
 		gender,
 		completed,
 		chapter_count,
-	))
+	), None)
 }
 
 #[get_manga_listing]
