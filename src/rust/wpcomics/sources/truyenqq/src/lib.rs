@@ -7,6 +7,7 @@ use aidoku::{
 	MangaViewer, Page,
 };
 use wpcomics_template::{helper::urlencode, template::WPComicsSource};
+use wpcomics_template::helper::{extract_f32_from_string};
 
 const BASE_URL: &str = "https://truyenqqgo.com";
 const USER_AGENT: &str = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) GSA/300.0.598994205 Mobile/15E148 Safari/604";
@@ -58,17 +59,7 @@ fn get_instance() -> WPComicsSource {
 		chapter_date_selector: "div.time-chap",
 
 		page_url_transformer: |url| {
-			let mut server_two = String::from("https://images2-focus-opensocial.googleusercontent.com/gadgets/proxy?container=focus&gadget=a&no_expand=1&resize_h=0&rewriteMime=image%2F*&url=");
-			if let Ok(server_selection) = defaults_get("serverSelection") {
-				if let Ok(2) = server_selection.as_int() {
-					server_two.push_str(&urlencode(url));
-					server_two
-				} else {
-					url
-				}
-			} else {
-				url
-			}
+			url
 		},
 		vinahost_protection: true,
 		user_agent: Some(USER_AGENT),
@@ -176,7 +167,76 @@ fn get_manga_details(id: String) -> Result<Manga> {
 
 #[get_chapter_list]
 fn get_chapter_list(id: String) -> Result<Vec<Chapter>> {
-	get_instance().get_chapter_list(id)
+	let html = get_instance()
+		.request_vinahost(&format!("{}", id), None)
+		.html()?;
+	// =================== fork from template.rs ====================
+	let title_untrimmed = (get_instance().manga_details_title_transformer)(
+		html.select("div.book_other h1[itemprop=name]").text().read(),
+	);
+	let title = title_untrimmed.trim();
+
+	let mut chapters: Vec<Chapter> = Vec::new();
+
+	for chapter in html.select("div.works-chapter-item").array() {
+		let chapter_node = chapter.as_node().expect("node array");
+		let mut chapter_url = chapter_node.select("div.name-chap a").attr("href").read();
+
+		if !chapter_url.contains("http://") && !chapter_url.contains("https://") {
+			chapter_url = format!(
+				"{}{}{}",
+				String::from(BASE_URL),
+				if chapter_url.starts_with("/") {
+					""
+				} else {
+					"/"
+				},
+				chapter_url
+			);
+		}
+		let chapter_id = chapter_url.clone();
+		let mut chapter_title = chapter_node.select("div.name-chap a").text().read();
+		let numbers = extract_f32_from_string(String::from(title), String::from(&chapter_title));
+		let (volume, chapter) =
+			if numbers.len() > 1 && chapter_title.to_ascii_lowercase().contains("vol") {
+				(numbers[0], numbers[1])
+			} else if !numbers.is_empty() {
+				(-1.0, numbers[0])
+			} else {
+				(-1.0, -1.0)
+			};
+		if chapter >= 0.0 {
+			let splitter = format!(" {}", chapter);
+			let splitter2 = format!("#{}", chapter);
+			if chapter_title.contains(&splitter) {
+				let split = chapter_title.splitn(2, &splitter).collect::<Vec<&str>>();
+				chapter_title =
+					String::from(split[1]).replacen(|char| char == ':' || char == '-', "", 1);
+			} else if chapter_title.contains(&splitter2) {
+				let split = chapter_title.splitn(2, &splitter2).collect::<Vec<&str>>();
+				chapter_title =
+					String::from(split[1]).replacen(|char| char == ':' || char == '-', "", 1);
+			}
+		}
+		let date_updated = (get_instance().time_converter)(
+			chapter_node
+				.select("div.time-chap")
+				.text()
+				.read(),
+		);
+		chapters.push(Chapter {
+			id: chapter_id,
+			title: String::from(chapter_title.trim()),
+			volume,
+			chapter: -1.0,
+			date_updated,
+			url: chapter_url,
+			lang: String::from("en"),
+			..Default::default()
+		});
+	}
+	// =====================================================
+	Ok(chapters)
 }
 
 #[get_page_list]

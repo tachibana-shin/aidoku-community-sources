@@ -74,7 +74,7 @@ fn cache_manga_page(data: &WPComicsSource, url: &str) {
 }
 
 impl WPComicsSource {
-	fn request_vinahost(&self, url: &str, headers: Option<&[(&str, &str)]>) -> Request {
+	pub fn request_vinahost(&self, url: &str, headers: Option<&[(&str, &str)]>) -> Request {
         if unsafe { VINAHOST_COOKIE.is_some() } {
             let mut req = Request::new(url, HttpMethod::Get).header(
                 "Cookie",
