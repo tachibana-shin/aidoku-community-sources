@@ -16,5 +16,5 @@ strip = true
 lto = true
 
 [dependencies]
-aidoku = { git = "https://github.com/Aidoku/aidoku-rs", features = ["helpers"] }
+aidoku = { git = "https://github.com/Aidoku/aidoku-rs", branch = "legacy",  features = ["helpers"] }
 regex = { version =  "1.11.1", default-features = false, features = ["unicode"] }

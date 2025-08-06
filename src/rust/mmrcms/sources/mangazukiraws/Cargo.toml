@@ -7,6 +7,6 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-aidoku = { git = "https://github.com/Aidoku/aidoku-rs" }
+aidoku = { git = "https://github.com/Aidoku/aidoku-rs", branch = "legacy" }
 mmrcms_template = { path = "../../template" }
 lazy_static = { version = "1.4.0", features = ["spin_no_std"] }

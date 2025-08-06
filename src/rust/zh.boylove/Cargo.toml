@@ -16,7 +16,7 @@ strip = true
 lto = true
 
 [dependencies]
-aidoku = { git = "https://github.com/Aidoku/aidoku-rs", features = ["helpers"] }
+aidoku = { git = "https://github.com/Aidoku/aidoku-rs", branch = "legacy",  features = ["helpers"] }
 chinese-number = { version = "0.7.7", default-features = false, features = ["chinese-to-number"] }
 md5 = { version = "0.7.0", default-features = false }
 regex = { version = "1.10.2", default-features = false, features = ["unicode"] }
