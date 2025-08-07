@@ -2,19 +2,48 @@
 use aidoku::{
 	error::Result,
 	prelude::*,
-	std::{defaults::defaults_get, net::Request, String, StringRef, Vec},
+	std::{defaults::defaults_get, net::HttpMethod, net::Request, String, StringRef, Vec},
 	Chapter, DeepLink, Filter, FilterType, Listing, Manga, MangaPageResult, MangaStatus,
 	MangaViewer, Page,
 };
+use wpcomics_template::helper::extract_f32_from_string;
 use wpcomics_template::{helper::urlencode, template::WPComicsSource};
-use wpcomics_template::helper::{extract_f32_from_string};
 
-const BASE_URL: &str = "https://truyenqqgo.com";
+fn get_base_url() -> Result<String> {
+	defaults_get("baseURL")?
+		.as_string()
+		.map(|v| String::from(v.read().trim_end_matches('/')))
+}
+fn get_proxy_url() -> Result<String> {
+	defaults_get("proxy")?
+		.as_string()
+		.map(|v| String::from(v.read().trim_end_matches('/')))
+}
+fn get_visit_read_id() -> Result<String> {
+	defaults_get("visitReadId")?
+		.as_string()
+		.map(|v| String::from(v.read()))
+}
+
 const USER_AGENT: &str = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) GSA/300.0.598994205 Mobile/15E148 Safari/604";
+
+fn get_url_with_proxy(url: &str) -> String {
+	// if proxy == null -> skip
+	match get_proxy_url() {
+		Ok(proxy) => {
+			if proxy.is_empty() {
+				String::from(url)
+			} else {
+				format!("{}?url={}", proxy, url)
+			}
+		}
+		Err(_) => String::from(url),
+	}
+}
 
 fn get_instance() -> WPComicsSource {
 	WPComicsSource {
-		base_url: String::from(BASE_URL),
+		base_url: String::from(get_base_url().unwrap_or_default()),
 		viewer: MangaViewer::Rtl,
 		listing_mapping: |listing| {
 			String::from(match listing.as_str() {
@@ -58,9 +87,7 @@ fn get_instance() -> WPComicsSource {
 		chapter_anchor_selector: "div.name-chap a",
 		chapter_date_selector: "div.time-chap",
 
-		page_url_transformer: |url| {
-			url
-		},
+		page_url_transformer: |url| url,
 		vinahost_protection: true,
 		user_agent: Some(USER_AGENT),
 		..Default::default()
@@ -84,7 +111,10 @@ fn get_manga_list(filters: Vec<Filter>, page: i32) -> Result<MangaPageResult> {
 							.read(),
 					);
 					if !title.is_empty() {
-						return format!("{BASE_URL}/tim-kiem/trang-{page}.html?q={title}");
+						return get_url_with_proxy(&format!(
+							"{}/tim-kiem/trang-{page}.html?q={title}",
+							get_base_url().unwrap_or_default()
+						));
 					}
 				}
 				FilterType::Genre => {
@@ -144,14 +174,16 @@ fn get_manga_list(filters: Vec<Filter>, page: i32) -> Result<MangaPageResult> {
 				},
 			}
 		}
-		format!(
-			"{BASE_URL}/tim-kiem-nang-cao.html?category={}&notcategory={}{}",
+		get_url_with_proxy(&format!(
+			"{}/tim-kiem-nang-cao.html?category={}&notcategory={}{}",
+			get_base_url().unwrap_or_default(),
 			included_tags.join(","),
 			excluded_tags.join(","),
 			query
-		)
+		))
 	}
-	let headers = &[("Cookie", "visit-read=6806034e0db74-6806034e0db75")];
+	let cookie_str = format!("visit-read={}", get_visit_read_id().unwrap_or_default());
+	let headers = &[("Cookie", cookie_str.as_str())];
 	get_instance().get_manga_list(get_search_url(filters, page), Some(headers))
 }
 
@@ -162,21 +194,39 @@ fn get_manga_listing(listing: Listing, page: i32) -> Result<MangaPageResult> {
 
 #[get_manga_details]
 fn get_manga_details(id: String) -> Result<Manga> {
-	get_instance().get_manga_details(id)
+	get_instance().get_manga_details(get_url_with_proxy(&id))
 }
 
 #[get_chapter_list]
 fn get_chapter_list(id: String) -> Result<Vec<Chapter>> {
-	let html = get_instance()
-		.request_vinahost(&format!("{}", id), None)
-		.html()?;
-	// =================== fork from template.rs ====================
+	let mut chapters: Vec<Chapter> = Vec::new();
+
+	// for i in 1..=5 {
+	//     let chapter_id = format!("fake-chap-{}", i);
+	//     chapters.push(Chapter {
+	//         id: chapter_id.clone(),
+	//         title: get_url_with_proxy(&id),
+	//         volume: -1.0,
+	//         chapter: i as f32,
+	//         date_updated: 0.0,
+	//         url: format!("https://example.com/manga/{}/chapter/{}", id, i),
+	//         lang: String::from("en"),
+	//         ..Default::default()
+	//     });
+	// }
+
+	let mut req = Request::new(&get_url_with_proxy(&id), HttpMethod::Get);
+	req = req.header("User-Agent", USER_AGENT);
+
+	let html = req.html()?;
+
+	// // =================== fork from template.rs ====================
 	let title_untrimmed = (get_instance().manga_details_title_transformer)(
-		html.select("div.book_other h1[itemprop=name]").text().read(),
+		html.select("div.book_other h1[itemprop=name]")
+			.text()
+			.read(),
 	);
 	let title = title_untrimmed.trim();
-
-	let mut chapters: Vec<Chapter> = Vec::new();
 
 	for chapter in html.select("div.works-chapter-item").array() {
 		let chapter_node = chapter.as_node().expect("node array");
@@ -185,7 +235,7 @@ fn get_chapter_list(id: String) -> Result<Vec<Chapter>> {
 		if !chapter_url.contains("http://") && !chapter_url.contains("https://") {
 			chapter_url = format!(
 				"{}{}{}",
-				String::from(BASE_URL),
+				String::from(get_base_url().unwrap_or_default()),
 				if chapter_url.starts_with("/") {
 					""
 				} else {
@@ -218,19 +268,15 @@ fn get_chapter_list(id: String) -> Result<Vec<Chapter>> {
 					String::from(split[1]).replacen(|char| char == ':' || char == '-', "", 1);
 			}
 		}
-		let date_updated = (get_instance().time_converter)(
-			chapter_node
-				.select("div.time-chap")
-				.text()
-				.read(),
-		);
+		let date_updated =
+			(get_instance().time_converter)(chapter_node.select("div.time-chap").text().read());
 		chapters.push(Chapter {
-			id: chapter_id,
+			id: get_url_with_proxy(&chapter_id),
 			title: String::from(chapter_title.trim()),
 			volume,
-			chapter: -1.0,
+			chapter,
 			date_updated,
-			url: chapter_url,
+			url: get_url_with_proxy(&chapter_url),
 			lang: String::from("en"),
 			..Default::default()
 		});
@@ -241,7 +287,36 @@ fn get_chapter_list(id: String) -> Result<Vec<Chapter>> {
 
 #[get_page_list]
 fn get_page_list(_manga_id: String, chapter_id: String) -> Result<Vec<Page>> {
-	get_instance().get_page_list(chapter_id)
+	let mut pages: Vec<Page> = Vec::new();
+
+	let mut req = Request::new(&get_url_with_proxy(&chapter_id), HttpMethod::Get);
+	req = req.header("User-Agent", USER_AGENT);
+
+	let html = req.html()?;
+
+	for (at, page) in html.select("div.page-chapter > img").array().enumerate() {
+		let page_node = page.as_node().expect("node array");
+
+		let mut page_url = page_node.attr("data-original").read();
+		if page_url.is_empty() {
+			page_url = page_node.attr("data-cdn").read();
+		}
+		if page_url.is_empty() {
+			page_url = page_node.attr("src").read();
+		}
+
+		if !page_url.starts_with("http") {
+			page_url = String::from("https:") + &page_url;
+		}
+		pages.push(Page {
+			index: at as i32,
+			url: page_url,
+			base64: String::new(),
+			text: String::new(),
+		});
+	}
+
+	Ok(pages)
 }
 
 #[modify_image_request]
@@ -251,5 +326,5 @@ fn modify_image_request(request: Request) {
 
 #[handle_url]
 fn handle_url(url: String) -> Result<DeepLink> {
-	get_instance().handle_url(url)
+	get_instance().handle_url(get_url_with_proxy(&url))
 }
