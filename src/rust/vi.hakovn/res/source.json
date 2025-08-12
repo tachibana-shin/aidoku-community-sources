@@ -1,0 +1,20 @@
+{
+	"info": {
+		"id": "vi.hakovn",
+		"lang": "vi",
+		"name": "HakoVN",
+		"version": 1,
+		"url": "https://docln.sbs"
+	},
+	"listings": [
+		{
+			"name": "Sáng tác"
+		},
+		{
+			"name": "AI dịch"
+		},
+		{
+			"name": "Danh sách"
+		}
+	]
+}

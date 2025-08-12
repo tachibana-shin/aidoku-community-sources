@@ -1,0 +1,1 @@
+mv package.aix /home/shin/.config/koreader/rakuyomi/sources/vi.truyenqq.aix
