@@ -8,31 +8,56 @@ use aidoku::{
 	Chapter, Manga, MangaContentRating, MangaPageResult, MangaStatus, MangaViewer, Page,
 };
 
-pub fn parse_search_page(document: Node, includes_non_hen: bool) -> Result<MangaPageResult> {
+use crate::BASE_URL;
+
+
+fn absolute_url(url: String, base_url: String) -> String {
+	if url.starts_with("http://") || url.starts_with("https://") {
+		url
+	} else if url.starts_with('/') {
+		if let Some(pos) = base_url.find("://") {
+			if let Some(slash_pos) = base_url[pos + 3..].find('/') {
+				let domain = &base_url[..pos + 3 + slash_pos + pos + 3];
+				format!("{}{}", domain, url)
+			} else {
+				format!("{}{}", base_url, url)
+			}
+		} else {
+			format!("{}{}", base_url, url)
+		}
+	} else {
+		let mut new_base = base_url;
+		if !new_base.ends_with('/') {
+			new_base.push('/');
+		}
+		new_base.push_str(&url);
+		new_base
+	}
+}
+
+
+
+pub fn parse_search_page(document: Node) -> Result<MangaPageResult> {
 	decode_cfemail(&document);
 
-	let nodes = document.select("li.search-li");
+	let nodes = document.select(".row.c-tabs-item__content");
 	let elems = nodes.array();
 	let mut manga: Vec<Manga> = Vec::with_capacity(elems.len());
 
 	for elem in elems {
 		if let Ok(node) = elem.as_node() {
-			let url_elem = node.select("div.search-des a");
-			let id = url_elem.attr("href").read().replace('/', "");
+			let url_elem = node.select("a");
+			let id = absolute_url(url_elem.attr("href").read(), BASE_URL.to_string());
 
-			let title_elem = node.select("div.search-des a b");
+			let title_elem = node.select("h3.h4 > a");
 
-			let img_elem = node.select("div.search-img img");
+			let img_elem = node.select(".tab-thumb img");
 
 			manga.push(Manga {
 				id,
 				cover: img_elem.attr("abs:src").read(),
 				title: title_elem.text().read(),
-				nsfw: if includes_non_hen {
-					MangaContentRating::Suggestive
-				} else {
-					MangaContentRating::Nsfw
-				},
+				nsfw: MangaContentRating::Nsfw,
 				..Default::default()
 			})
 		}
@@ -41,7 +66,7 @@ pub fn parse_search_page(document: Node, includes_non_hen: bool) -> Result<Manga
 	Ok(MangaPageResult {
 		manga,
 		has_more: !document
-			.select("ul.pagination > li:contains(Cuối)")
+			.select(".navigation .nav-previous")
 			.array()
 			.is_empty(),
 	})
@@ -181,17 +206,16 @@ pub fn parse_manga_details(id: String, document: Node) -> Result<Manga> {
 pub fn parse_chapter_list(document: Node) -> Result<Vec<Chapter>> {
 	decode_cfemail(&document);
 
-	let row_elems = document.select("table.listing tbody tr");
+	let row_elems = document.select(".wp-manga-chapter");
 	let rows = row_elems.array();
 	let mut chapters = Vec::with_capacity(rows.len());
 
 	for (idx, row) in rows.rev().enumerate() {
 		if let Ok(node) = row.as_node() {
-			let url_elem = node.select("td:first-child a");
-			let id = url_elem.attr("href").read().replace('/', "");
+			let url_elem = node.select("a");
+			let id = absolute_url(url_elem.attr("href").read(), BASE_URL.to_string());
 
-			let title_elem = node.select("h2.chuong_t");
-			let title_raw = title_elem.text().read();
+			let title_raw = url_elem.text().read();
 
 			let mut chapter: f32 = if title_raw.to_lowercase().contains("Oneshot")
 				|| title_raw.to_lowercase().contains("1shot")
@@ -210,7 +234,7 @@ pub fn parse_chapter_list(document: Node) -> Result<Vec<Chapter>> {
 				title_raw.clone()
 			};
 
-			if title_parts[0].contains("Chap") {
+			if title_parts[0].contains("Chapter") {
 				let chapter_raw = title_parts[0]
 					.split(char::is_whitespace)
 					.last()
@@ -218,17 +242,11 @@ pub fn parse_chapter_list(document: Node) -> Result<Vec<Chapter>> {
 				chapter = chapter_raw.parse::<f32>().unwrap_or(idx as f32);
 			}
 
-			let date_updated_elem = node.select("td:nth-child(2)");
-			let date_updated = date_updated_elem.text().as_date(
-				"dd/MM/yyyy",
-				Some("en_US"),
-				Some("Asia/Ho_Chi_Minh"),
-			);
 			chapters.push(Chapter {
 				id,
 				chapter,
 				title,
-				date_updated,
+				date_updated: 0.0,
 				url: url_elem.attr("abs:href").read(),
 				..Default::default()
 			})
