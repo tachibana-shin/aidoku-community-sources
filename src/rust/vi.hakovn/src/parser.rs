@@ -228,8 +228,16 @@ pub fn parse_page_list(document: Node, selector: &str, base_url: &str) -> Result
 		if let Ok(anchor) = elem.as_node() {
 			let url = absolute_url(anchor.attr("href").read(), BASE_URL.to_string());
 
-			let req = Request::get(&url).header("Referer", base_url);
-			let document = req.html()?;
+        let req = Request::get(&url).header("Referer", base_url);
+
+        // Try-catch kiểu Rust cho request
+        let document = match req.html() {
+            Ok(doc) => doc,
+            Err(e) => {
+                println!("[ERROR] Failed to fetch HTML for {}: {:?}", url, e);
+                continue; // bỏ qua và sang chapter tiếp theo
+            }
+        };
 
 			let text = document
 				.select("#chapter-content")

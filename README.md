@@ -88,6 +88,45 @@ Page {
 };
 ```
 
+# Decode DRM support
+Check this code
+```rust
+
+		let pages = chapters
+		.map(|chapter_ref| {
+			let chapter = chapter_ref.as_object().unwrap();
+
+			let index = chapter.get("order").as_int().unwrap() as i32;
+			let url = chapter.get("image_url").as_string().unwrap().read();
+			let drm_data = chapter.get("drm_data").as_string().unwrap().read();
+
+			let blocks = decode_drm(drm_data.replace('\n', "").trim()).unwrap();
+			let base64 = {
+				let mut s = String::from("[");
+				for (i, rb) in blocks.iter().enumerate() {
+					if i > 0 {
+						s.push(',');
+					}
+					s.push_str(&format!(
+						r#"{{"sx":0,"sy":-1,"dx":0,"dy":{},"width":0,"height":{}}}"#,
+						rb.dy, rb.height
+					));
+				}
+				s.push(']');
+				s
+			};
+
+			Page {
+				index,
+				url,
+				base64,
+				..Default::default()
+			}
+		})
+		.collect();
+
+```
+
 ## Contributing
 Contributions are welcome!
 
