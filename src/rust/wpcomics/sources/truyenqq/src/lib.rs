@@ -246,6 +246,7 @@ fn get_chapter_list(id: String) -> Result<Vec<Chapter>> {
 		}
 		let chapter_id = chapter_url.clone();
 		let mut chapter_title = chapter_node.select("div.name-chap a").text().read();
+		let title_raw = chapter_title.clone();
 		let numbers = extract_f32_from_string(String::from(title), String::from(&chapter_title));
 		let (volume, chapter) =
 			if numbers.len() > 1 && chapter_title.to_ascii_lowercase().contains("vol") {
@@ -270,9 +271,16 @@ fn get_chapter_list(id: String) -> Result<Vec<Chapter>> {
 		}
 		let date_updated =
 			(get_instance().time_converter)(chapter_node.select("div.time-chap").text().read());
+
+		chapter_title = chapter_title.trim();
+
 		chapters.push(Chapter {
 			id: get_url_with_proxy(&chapter_id),
-			title: String::from(chapter_title.trim()),
+			title: String::from(if chapter_title.is_empty() {
+				title_raw.trim()
+			} else {
+				chapter_title
+			}),
 			volume,
 			chapter,
 			date_updated,
