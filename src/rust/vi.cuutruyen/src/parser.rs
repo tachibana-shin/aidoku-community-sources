@@ -98,32 +98,59 @@ pub fn parse_manga_details(data: ObjectRef) -> Result<Manga> {
 }
 
 pub fn parse_chapter_list(data: ObjectRef, manga_id: String) -> Result<Vec<Chapter>> {
+	let total = data.get("data").as_array().iter().len() as f32;
+
 	Ok(data
 		.get("data")
 		.as_array()
 		.unwrap()
-		.map(|chapter_ref| {
-			let chapter = chapter_ref.as_object().unwrap();
+		.enumerate()
+		.map(|(idx, chapter_ref)| {
+			let chapter_data = chapter_ref.as_object().unwrap();
 
-			let id = chapter.get("id").as_int().unwrap().to_string();
+			let id = chapter_data.get("id").as_int().unwrap().to_string();
+			let title = chapter_data
+				.get("name")
+				.as_string()
+				.unwrap_or("".into())
+				.read();
+
+			let number = chapter_data.get("number").as_string().unwrap().read();
+			let (volume, chapter) = if number.contains("vol.") {
+				// number sample: Bonus vol. 1
+				// chapter = -1.0
+				let vol_value = number
+					.split("vol.")
+					.nth(1)
+					.map(|s| s.trim())
+					.and_then(|s| s.parse::<f32>().ok())
+					.unwrap_or(-1.0);
+
+				(vol_value, total - idx as f32)
+			} else {
+				(
+					-1.0,
+					chapter_data
+						.get("number")
+						.as_string()
+						.and_then(|s| {
+							s.read()
+								.to_string()
+								.parse::<f32>()
+								.map_err(|_| AidokuError {
+									reason: AidokuErrorKind::JsonParseError,
+								})
+						})
+						.unwrap_or(total - idx as f32),
+				)
+			};
 
 			Chapter {
 				id: id.clone(),
-				title: chapter.get("name").as_string().unwrap().read(),
-				volume: -1.0,
-				chapter: chapter
-					.get("number")
-					.as_string()
-					.and_then(|s| {
-						s.read()
-							.to_string()
-							.parse::<f32>()
-							.map_err(|_| AidokuError {
-								reason: AidokuErrorKind::JsonParseError,
-							})
-					})
-					.unwrap_or(-1.0),
-				date_updated: chapter
+				title,
+				volume,
+				chapter,
+				date_updated: chapter_data
 					.get("updated_at")
 					.as_string()
 					.and_then(|s| {
