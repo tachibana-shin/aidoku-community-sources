@@ -27,5 +27,5 @@ pub fn get_search_url(filters: Vec<Filter>, page: i32) -> String {
 			_ => continue,
 		}
 	}
-	format!("{BASE_URL}/api/library/search?q=conan&sort=updated_at/?{qs}")
+	format!("{BASE_URL}/api/library/search/?{qs}")
 }
