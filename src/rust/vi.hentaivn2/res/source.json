@@ -1,0 +1,21 @@
+{
+  "info": {
+    "id": "vi.hentaivnoffical",
+    "lang": "vi",
+    "name": "HentaiVN Official",
+    "version": 7,
+    "url": "https://hentaivn.su",
+    "nsfw": 2
+  },
+  "listings": [
+    {
+      "name": "Ngẫu nhiên"
+    },
+    {
+      "name": "Không che"
+    },
+    {
+      "name": "Full color"
+    }
+  ]
+}
