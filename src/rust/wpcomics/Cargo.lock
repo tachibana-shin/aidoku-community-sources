@@ -110,6 +110,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "truyen3q"
+version = "0.1.0"
+dependencies = [
+ "aidoku",
+ "wpcomics_template",
+]
+
+[[package]]
 name = "truyenqq"
 version = "0.1.0"
 dependencies = [
