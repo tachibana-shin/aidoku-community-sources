@@ -272,14 +272,14 @@ fn get_chapter_list(id: String) -> Result<Vec<Chapter>> {
 		let date_updated =
 			(get_instance().time_converter)(chapter_node.select("div.time-chap").text().read());
 
-		chapter_title = chapter_title.trim();
+		chapter_title = format!("{}", chapter_title.trim());
 
 		chapters.push(Chapter {
 			id: get_url_with_proxy(&chapter_id),
 			title: String::from(if chapter_title.is_empty() {
 				title_raw.trim()
 			} else {
-				chapter_title
+				&chapter_title
 			}),
 			volume,
 			chapter,
