@@ -9,7 +9,7 @@ use aidoku::{
 	error::{AidokuError, Result},
 	helpers::uri::encode_uri,
 	prelude::*,
-	std::{String, Vec, html::Node, json, net::Request},
+	std::{String, Vec, html::Node, net::Request},
 };
 use alloc::string::ToString;
 use parser::{parse_chapter_list, parse_manga_details, parse_page_list, parse_search_page};
@@ -24,32 +24,32 @@ struct Cache {
 	data: Option<Vec<u8>>,
 }
 
-// Unsafe static cache wrapper
-static mut CACHE: UnsafeCell<Cache> = UnsafeCell::new(Cache {
+struct GlobalCache(UnsafeCell<Cache>);
+unsafe impl Sync for GlobalCache {}
+
+static CACHE: GlobalCache = GlobalCache(UnsafeCell::new(Cache {
 	id: None,
 	data: None,
-});
+}));
 
 fn req_with_cache(url: String) -> Node {
-	unsafe {
-		let cache = &mut *CACHE.get();
+	let cache = unsafe { &mut *CACHE.0.get() };
 
-		if let Some(cached_id) = &cache.id {
-			if *cached_id == url {
-				if let Some(data) = &cache.data {
-					return Node::new(data).expect("Invalid cached node");
-				}
+	if let Some(cached_id) = &cache.id {
+		if *cached_id == url {
+			if let Some(data) = &cache.data {
+				return Node::new(data).expect("Invalid cached node");
 			}
 		}
-
-		let req = Request::get(url.clone()).header("Referer", BASE_URL);
-		let html_data = req.data();
-
-		cache.id = Some(url);
-		cache.data = Some(html_data.clone());
-
-		Node::new(&html_data).expect("Invalid node")
 	}
+
+	let req = Request::get(url.clone()).header("Referer", BASE_URL);
+	let html_data = req.data();
+
+	cache.id = Some(url);
+	cache.data = Some(html_data.clone());
+
+	Node::new(&html_data).expect("Invalid node")
 }
 
 #[get_manga_list]
@@ -89,14 +89,14 @@ fn get_chapter_list(id: String) -> Result<Vec<Chapter>> {
 
 #[get_page_list]
 fn get_page_list(_: String, id: String) -> Result<Vec<Page>> {
-	let json = json::parse(id)
-		.expect("Invalid JSON")
-		.as_object()
-		.expect("Invalid object");
+	let (url, name) = match id.split_once('#') {
+		Some((u, n)) => (u.to_string(), n.to_string()),
+		None => (id.to_string(), String::new()),
+	};
 
-	let url = encode_uri(json.get("root").as_string().unwrap_or_default().read());
+	let url = encode_uri(url);
 
-	let name = json.get("name").as_string().unwrap_or_default().read();
+	println!("Cache invalidated for {url}");
 
 	let document = req_with_cache(url);
 
