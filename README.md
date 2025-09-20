@@ -5,9 +5,9 @@ This repository hosts unofficial, community-made sources that are installable th
 > The Light Novel sources are only supported for [Rakuyomi Fork version](https://github.com/tachibana-shin/rakuyomi)
 
 ## Usage
-On a device with Aidoku installed, you can open [this link](https://aidoku.app/add-source-list/?url=https://raw.githubusercontent.com/tachibana-shin/aidoku-community-sources/gh-pages/) to add the source list directly to the app.
+On a device with Aidoku installed, you can open [this link](https://aidoku.app/add-source-list/?url=https://tachibana-shin.github.io/aidoku-community-sources/) to add the source list directly to the app.
 
-Otherwise, navigate to the settings tab, and under the source lists page add `https://raw.githubusercontent.com/tachibana-shin/aidoku-community-sources/gh-pages/`.
+Otherwise, navigate to the settings tab, and under the source lists page add https://tachibana-shin.github.io/aidoku-community-sources/
 
 If a source is not working, or you want to request a source that isn't available in this source list, feel free to [create a new issue](https://github.com/tachibana-shin/aidoku-community-sources/issues).
 
