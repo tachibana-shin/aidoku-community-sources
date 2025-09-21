@@ -81,11 +81,10 @@ fn get_manga_list(filters: Vec<Filter>, page: i32) -> Result<MangaPageResult> {
 			has_more: false,
 		})
 	} else {
-		get_instance().get_manga_list(get_search_url(
-			String::from("https://readcomicsbook.com"),
-			genre,
-			page,
-		), None)
+		get_instance().get_manga_list(
+			get_search_url(String::from("https://readcomicsbook.com"), genre, page),
+			None,
+		)
 	}
 }
 

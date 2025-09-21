@@ -28,7 +28,11 @@ pub fn get_search_url(
 	} else {
 		format!(
 			"{base_url}/tim-truyen/{}&status={completed}&sort={sort_by}&page={page}",
-		if let Some(val) = category { &val.clone() } else { "" }
+			if let Some(val) = category {
+				&val.clone()
+			} else {
+				""
+			}
 		)
 	}
 }

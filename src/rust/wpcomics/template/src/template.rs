@@ -76,83 +76,83 @@ fn cache_manga_page(data: &WPComicsSource, url: &str) {
 
 impl WPComicsSource {
 	pub fn request_vinahost(&self, url: &str, headers: Option<&[(&str, &str)]>) -> Request {
-        if unsafe { VINAHOST_COOKIE.is_some() } {
-            let mut req = Request::new(url, HttpMethod::Get).header(
-                "Cookie",
-                unsafe { VINAHOST_COOKIE.clone().unwrap() }.as_str(),
-            );
-            if let Some(user_agent) = self.user_agent {
-                req = req.header("User-Agent", user_agent);
-            }
-            if let Some(extra_headers) = headers {
-                for (key, value) in extra_headers {
-                    req = req.header(key, value);
-                }
-            }
-            return req;
-        }
+		if unsafe { VINAHOST_COOKIE.is_some() } {
+			let mut req = Request::new(url, HttpMethod::Get).header(
+				"Cookie",
+				unsafe { VINAHOST_COOKIE.clone().unwrap() }.as_str(),
+			);
+			if let Some(user_agent) = self.user_agent {
+				req = req.header("User-Agent", user_agent);
+			}
+			if let Some(extra_headers) = headers {
+				for (key, value) in extra_headers {
+					req = req.header(key, value);
+				}
+			}
+			return req;
+		}
 
-        // Vinahost の保護が有効な場合
-        if self.vinahost_protection {
-            let mut req = Request::new(url, HttpMethod::Get);
-            if let Some(user_agent) = self.user_agent {
-                req = req.header("User-Agent", user_agent);
-            }
-            if let Some(extra_headers) = headers {
-                for (key, value) in extra_headers {
-                    req = req.header(key, value);
-                }
-            }
+		// Vinahost の保護が有効な場合
+		if self.vinahost_protection {
+			let mut req = Request::new(url, HttpMethod::Get);
+			if let Some(user_agent) = self.user_agent {
+				req = req.header("User-Agent", user_agent);
+			}
+			if let Some(extra_headers) = headers {
+				for (key, value) in extra_headers {
+					req = req.header(key, value);
+				}
+			}
 
-            // 保護ページを取得して Cookie を抽出
-            if let Ok(blocked_html) = req.html() {
-                let script = blocked_html.select("script").html().read();
-                let cookie = script
-                    .replace("document.cookie=\"", "")
-                    .replace("\";window.location.reload(true);", "")
-                    .replace("\"+\"", "");
-                unsafe {
-                    VINAHOST_COOKIE = Some(cookie);
-                };
-                let mut req = Request::new(url, HttpMethod::Get).header(
-                    "Cookie",
-                    unsafe { VINAHOST_COOKIE.clone().unwrap() }.as_str(),
-                );
-                if let Some(user_agent) = self.user_agent {
-                    req = req.header("User-Agent", user_agent);
-                }
-                if let Some(extra_headers) = headers {
-                    for (key, value) in extra_headers {
-                        req = req.header(key, value);
-                    }
-                }
-                return req;
-            } else {
-                let mut req = Request::new(url, HttpMethod::Get);
-                if let Some(user_agent) = self.user_agent {
-                    req = req.header("User-Agent", user_agent);
-                }
-                if let Some(extra_headers) = headers {
-                    for (key, value) in extra_headers {
-                        req = req.header(key, value);
-                    }
-                }
-                return req;
-            }
-        }
+			// 保護ページを取得して Cookie を抽出
+			if let Ok(blocked_html) = req.html() {
+				let script = blocked_html.select("script").html().read();
+				let cookie = script
+					.replace("document.cookie=\"", "")
+					.replace("\";window.location.reload(true);", "")
+					.replace("\"+\"", "");
+				unsafe {
+					VINAHOST_COOKIE = Some(cookie);
+				};
+				let mut req = Request::new(url, HttpMethod::Get).header(
+					"Cookie",
+					unsafe { VINAHOST_COOKIE.clone().unwrap() }.as_str(),
+				);
+				if let Some(user_agent) = self.user_agent {
+					req = req.header("User-Agent", user_agent);
+				}
+				if let Some(extra_headers) = headers {
+					for (key, value) in extra_headers {
+						req = req.header(key, value);
+					}
+				}
+				return req;
+			} else {
+				let mut req = Request::new(url, HttpMethod::Get);
+				if let Some(user_agent) = self.user_agent {
+					req = req.header("User-Agent", user_agent);
+				}
+				if let Some(extra_headers) = headers {
+					for (key, value) in extra_headers {
+						req = req.header(key, value);
+					}
+				}
+				return req;
+			}
+		}
 
-        // 通常のリクエスト
-        let mut req = Request::new(url, HttpMethod::Get);
-        if let Some(user_agent) = self.user_agent {
-            req = req.header("User-Agent", user_agent);
-        }
-        if let Some(extra_headers) = headers {
-            for (key, value) in extra_headers {
-                req = req.header(key, value);
-            }
-        }
-        req
-    }
+		// 通常のリクエスト
+		let mut req = Request::new(url, HttpMethod::Get);
+		if let Some(user_agent) = self.user_agent {
+			req = req.header("User-Agent", user_agent);
+		}
+		if let Some(extra_headers) = headers {
+			for (key, value) in extra_headers {
+				req = req.header(key, value);
+			}
+		}
+		req
+	}
 
 	fn category_parser(&self, categories: &Vec<String>) -> (MangaContentRating, MangaViewer) {
 		#[allow(clippy::needless_match)]
