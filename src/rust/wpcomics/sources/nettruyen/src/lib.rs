@@ -2,8 +2,12 @@
 pub mod helper;
 use crate::helper::*;
 use aidoku::{
-	error::Result, prelude::*, std::net::Request, std::String, std::Vec, Chapter, DeepLink, Filter,
-	FilterType, Listing, Manga, MangaPageResult, MangaViewer, Page,
+	error::Result,
+	prelude::*,
+	std::net::Request,
+	std::String,
+	std::{Vec},
+	Chapter, DeepLink, Filter, FilterType, Listing, Manga, MangaPageResult, MangaViewer, Page,
 };
 use wpcomics_template::{helper::urlencode, template, template::WPComicsSource};
 
@@ -25,7 +29,6 @@ fn get_instance() -> WPComicsSource {
 		status_mapping: status_map,
 		time_converter: convert_time,
 		manga_viewer_page_attr: "data-src",
-		page_url_transformer: |url| url,
 		..Default::default()
 	}
 }
@@ -43,7 +46,7 @@ fn get_manga_list(filters: Vec<Filter>, page: i32) -> Result<MangaPageResult> {
 			}
 			FilterType::Genre => {
 				category = Some(filter.value.as_string()?.read());
-			}
+			}				
 			_ => {
 				match filter.name.as_str() {
 					"Tình trạng" => {
@@ -73,17 +76,14 @@ fn get_manga_list(filters: Vec<Filter>, page: i32) -> Result<MangaPageResult> {
 		}
 	}
 	let instance = get_instance();
-	instance.get_manga_list(
-		get_search_url(
-			instance.base_url.clone(),
-			title,
-			page,
-			category,
-			sort_by,
-			completed,
-		),
-		None,
-	)
+	instance.get_manga_list(get_search_url(
+		instance.base_url.clone(),
+		title,
+		page,
+		category,
+		sort_by,
+		completed,
+	), None)
 }
 
 #[get_manga_listing]
