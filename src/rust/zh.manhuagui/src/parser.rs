@@ -14,7 +14,25 @@ use aidoku::{
 };
 use alloc::{string::ToString, vec};
 
-const BASE_URL: &str = "https://www.manhuagui.com";
+fn extract_chapter_number(title: &str) -> Option<f32> {
+	let keywords = ["话", "話", "章", "回", "卷"];
+	for &kw in &keywords {
+		if let Some(pos) = title.rfind(kw) {
+			let before = &title[..pos];
+			let mut start = pos;
+			while start > 0 && (before.as_bytes()[start - 1].is_ascii_digit() || before.as_bytes()[start - 1] == b'.') {
+				start -= 1;
+			}
+			if start < pos {
+				let num_str = &before[start..];
+				if let Ok(num) = num_str.parse::<f32>() {
+					return Some(num);
+				}
+			}
+		}
+	}
+	None
+}
 
 const FILTER_REGION: [&str; 7] = [
 	"all", "japan", "hongkong", "other", "europe", "china", "korea",
@@ -90,7 +108,7 @@ pub fn parse_home_page(html: Node) -> Result<MangaPageResult> {
 			author: String::new(),
 			artist: String::new(),
 			description: String::new(),
-			url: format!("{}/comic/{}", BASE_URL, manga_id), //`${this.baseUrl}/comic/${mangaId}`;,
+			url: format!("{}/comic/{}", crate::get_base_url(), manga_id), //`${this.baseUrl}/comic/${mangaId}`;,
 			categories: vec![],
 			status: MangaStatus::Completed,
 			nsfw: MangaContentRating::Safe,
@@ -105,7 +123,8 @@ pub fn parse_home_page(html: Node) -> Result<MangaPageResult> {
 			Ok(node) => node,
 			Err(_) => continue,
 		};
-		if elem_node.text().read() == "尾页" {
+		let text = elem_node.text().read();
+		if text == "尾页" || text == "尾頁" {
 			has_next = true;
 			break;
 		}
@@ -142,7 +161,7 @@ pub fn parse_search_page(html: Node) -> Result<MangaPageResult> {
 			author: String::new(),
 			artist: String::new(),
 			description: String::new(),
-			url: format!("{}/comic/{}", BASE_URL, manga_id), //`${this.baseUrl}/comic/${mangaId}`;,
+			url: format!("{}/comic/{}", crate::get_base_url(), manga_id), //`${this.baseUrl}/comic/${mangaId}`;,
 			categories: vec![],
 			status: MangaStatus::Completed,
 			nsfw: MangaContentRating::Safe,
@@ -157,7 +176,8 @@ pub fn parse_search_page(html: Node) -> Result<MangaPageResult> {
 			Ok(node) => node,
 			Err(_) => continue,
 		};
-		if page_node.text().read() == "尾页" {
+		let text = page_node.text().read();
+		if text == "尾页" || text == "尾頁" {
 			has_next = true;
 			break;
 		}
@@ -171,15 +191,36 @@ pub fn parse_search_page(html: Node) -> Result<MangaPageResult> {
 
 pub fn parse_manga_details(html: Node, manga_id: String) -> Result<Manga> {
 	let title = html.select(".book-title > h1").text().read();
-	let author = html
-      .select(
-        "body > div.w998.bc.cf > div.fl.w728 > div.book-cont.cf > div.book-detail.pr.fr > ul > li:nth-child(2) > span:nth-child(2) > a:nth-child(2)"
-      )
-      .text()
-	  .read();
+	let mut authors = Vec::new();
+	for author_link in html.select("ul.detail-list li:nth-child(2) span:nth-child(2) a").array() {
+		if let Ok(author_node) = author_link.as_node() {
+			let author_text = author_node.text().read();
+			if !author_text.is_empty() {
+				authors.push(author_text);
+			}
+		}
+	}
+	let author = authors.join(", ");
 	let desc = html.select("#intro-cut").text().read();
 	let image = format!("https://cf.hamreus.com/cpic/b/{}.jpg", manga_id);
-	let url = format!("https://www.manhuagui.com/comic/{}/", manga_id);
+	let url = format!("{}/comic/{}/", crate::get_base_url(), manga_id);
+
+	let status_text = html.select("li.status").text().read();
+	let status = if status_text.contains("已完结") || status_text.contains("已完結") {
+		MangaStatus::Completed
+	} else {
+		MangaStatus::Ongoing
+	};
+
+	let mut categories = Vec::new();
+	for category in html.select("ul.detail-list li:nth-child(2) span:nth-child(1) a").array() {
+		if let Ok(cat_node) = category.as_node() {
+			let cat_text = cat_node.text().read();
+			if !cat_text.is_empty() {
+				categories.push(cat_text);
+			}
+		}
+	}
 
 	let manga = Manga {
 		id: manga_id,
@@ -189,8 +230,8 @@ pub fn parse_manga_details(html: Node, manga_id: String) -> Result<Manga> {
 		artist: author,
 		description: desc,
 		url,
-		categories: vec![],
-		status: MangaStatus::Ongoing,
+		categories,
+		status,
 		nsfw: MangaContentRating::Safe,
 		viewer: MangaViewer::Scroll,
 	};
@@ -212,10 +253,28 @@ pub fn get_chapter_list(html: Node) -> Result<Vec<Chapter>> {
 		div = Node::new_fragment(decompressed.as_bytes()).unwrap_or(div);
 	}
 
+	// Parse scanlators from h4 tags
+	let mut scanlators: Vec<String> = Vec::new();
+	for h4 in div.select("h4").array() {
+		if let Ok(h4_node) = h4.as_node() {
+			let scanlator = h4_node.select("span").text().read();
+			scanlators.push(scanlator);
+		}
+	}
+	scanlators.reverse(); // Reverse to match the .rev() order of chapter-list
+
+	let mut scanlator_index = 0;
+
 	for element in div.select(".chapter-list").array().rev() {
 		let chapt_list_div = match element.as_node() {
 			Ok(node) => node,
 			Err(_) => continue,
+		};
+
+		let scanlator = if scanlator_index < scanlators.len() {
+			scanlators[scanlator_index].clone()
+		} else {
+			String::new()
 		};
 
 		for ul_ref in chapt_list_div.select("ul").array() {
@@ -232,26 +291,23 @@ pub fn get_chapter_list(html: Node) -> Result<Vec<Chapter>> {
 
 				let url = elem.select("a").attr("href").read();
 				let id = url.clone().replace("/comic/", "").replace(".html", "");
-				let chapter_id = match id.split('/').last() {
+				let chapter_id = match id.split('/').next_back() {
 					Some(id) => String::from(id),
 					None => String::new(),
 				};
-				let title = elem.select("a").attr("title").read();
-				let chapter_or_volume = title
-					.clone()
-					.replace(['第', '话', '話', '回', '卷'], " ")
-					.parse::<f32>()
-					.unwrap_or(index);
-				let ch = if title.contains('卷') {
-					-1.0
+				let mut title = elem.select("a").attr("title").read();
+				let chapter_or_volume = extract_chapter_number(&title).unwrap_or(index);
+				let (ch, vo) = if title.trim().ends_with('卷') {
+					(-1.0, chapter_or_volume)
 				} else {
-					chapter_or_volume
+					(chapter_or_volume, -1.0)
 				};
-				let vo = if title.contains('卷') {
-					chapter_or_volume
-				} else {
-					-1.0
-				};
+
+				// Add page count if available
+				let page_text = elem.select("i").text().read();
+				if !page_text.is_empty() {
+					title = format!("{} ({})", title, page_text);
+				}
 
 				let chapter = Chapter {
 					id: chapter_id,
@@ -259,7 +315,7 @@ pub fn get_chapter_list(html: Node) -> Result<Vec<Chapter>> {
 					volume: vo,
 					chapter: ch,
 					date_updated: -1.0,
-					scanlator: String::new(),
+					scanlator: scanlator.clone(),
 					url,
 					lang: String::from("zh"),
 				};
@@ -268,6 +324,7 @@ pub fn get_chapter_list(html: Node) -> Result<Vec<Chapter>> {
 				index += 1.0;
 			}
 		}
+		scanlator_index += 1;
 	}
 	chapters.reverse();
 
@@ -277,7 +334,12 @@ pub fn get_chapter_list(html: Node) -> Result<Vec<Chapter>> {
 pub fn get_page_list(base_url: String) -> Result<Vec<Page>> {
 	let mut pages: Vec<Page> = Vec::new();
 
-	let html = Request::new(base_url.as_str(), HttpMethod::Get).html()?;
+	let request = Request::new(base_url.as_str(), HttpMethod::Get)
+		.header("Referer", crate::get_base_url())
+		.header("User-Agent", crate::USER_AGENT)
+		.header("Accept-Language", "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7")
+		.header("Cookie", "device_view=pc");
+	let html = request.html()?;
 
 	let decoder = Decoder::new(html.html().read());
 	let (path, pages_str) = decoder.decode();
@@ -301,7 +363,7 @@ pub fn get_page_list(base_url: String) -> Result<Vec<Page>> {
 pub fn get_filtered_url(filters: Vec<Filter>, page: i32, url: &mut String) {
 	let mut is_searching = false;
 	let mut search_string = String::new();
-	url.push_str(BASE_URL);
+	url.push_str(crate::get_base_url());
 
 	let mut region: &str = "all";
 	let mut genre: &str = "all";
