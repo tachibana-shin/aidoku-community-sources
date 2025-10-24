@@ -297,8 +297,6 @@ fn get_chapter_list(id: String) -> Result<Vec<Chapter>> {
 fn get_page_list(_manga_id: String, chapter_id: String) -> Result<Vec<Page>> {
 	let mut pages: Vec<Page> = Vec::new();
 
-	println!("out================{}", chapter_id.clone());
-
 	let mut req = Request::new(&get_url_with_proxy(&chapter_id), HttpMethod::Get);
 	req = req.header("User-Agent", USER_AGENT);
 

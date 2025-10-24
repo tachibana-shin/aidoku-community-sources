@@ -183,7 +183,6 @@ fn get_manga_list(filters: Vec<Filter>, page: i32) -> Result<MangaPageResult> {
 	let headers = &[("Cookie", cookie_str.as_str())];
 
 	let url = get_search_url(filters, page);
-	println!("Search URL: {}", url.clone());
 	get_instance().get_manga_list(url, Some(headers))
 }
 
