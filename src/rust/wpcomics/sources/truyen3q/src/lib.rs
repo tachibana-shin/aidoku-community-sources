@@ -307,12 +307,25 @@ fn get_page_list(_manga_id: String, chapter_id: String) -> Result<Vec<Page>> {
 	for (at, page) in html.select("div.page-chapter > img").array().enumerate() {
 		let page_node = page.as_node().expect("node array");
 
-		let mut page_url = page_node.attr("data-src").read();
+		let mut page_url = if page_node.has_attr("data-original") {
+			page_node.attr("data-original").read()
+		} else {
+			String::new()
+		};
+
 		if page_url.is_empty() {
-			page_url = page_node.attr("data-cdn").read();
+			page_url = if page_node.has_attr("data-cdn") {
+				page_node.attr("data-cdn").read()
+			} else {
+				page_url
+			}
 		}
 		if page_url.is_empty() {
-			page_url = page_node.attr("src").read();
+			page_url = if page_node.has_attr("src") {
+				page_node.attr("src").read()
+			} else {
+				page_url
+			}
 		}
 
 		if !page_url.starts_with("http") {
