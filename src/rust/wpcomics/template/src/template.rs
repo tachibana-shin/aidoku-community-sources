@@ -8,6 +8,7 @@ use crate::helper::{append_protocol, extract_f32_from_string, text_with_newlines
 
 pub struct WPComicsSource {
 	pub base_url: String,
+	pub cookie: Option<&'static str>,
 	pub listing_mapping: fn(String) -> String,
 	pub status_mapping: fn(String) -> MangaStatus,
 	pub time_converter: fn(String) -> f64,
@@ -145,6 +146,9 @@ impl WPComicsSource {
 
 		// 通常のリクエスト
 		let mut req = Request::new(url, HttpMethod::Get);
+		if let Some(cookie) = &self.cookie {
+			req = req.header("Cookie", &cookie);
+		}
 		if let Some(user_agent) = self.user_agent {
 			req = req.header("User-Agent", user_agent);
 		}
@@ -451,6 +455,7 @@ impl Default for WPComicsSource {
 	fn default() -> WPComicsSource {
 		WPComicsSource {
 			base_url: String::new(),
+			cookie: None,
 			listing_mapping: |str| str,
 			status_mapping: |status| match status.as_str() {
 				"Ongoing" => MangaStatus::Ongoing,

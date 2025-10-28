@@ -1,0 +1,73 @@
+[
+  {
+    "type": "title"
+  },
+  {
+    "type": "select",
+    "name": "Tình trạng",
+    "options": ["Tất cả", "Đang tiến hành", "Đã hoàn thành"]
+  },
+  {
+    "type": "select",
+    "name": "Sắp xếp theo",
+    "options": [
+      "Chapter mới",
+      "Truyện mới",
+      "Xem nhiều nhất",
+      "Xem nhiều nhất tháng",
+      "Xem nhiều nhất tuần",
+      "Xem nhiều nhất hôm nay",
+      "Theo dõi nhiều nhất",
+      "Bình luận nhiều nhất",
+      "Số chapter nhiều nhất",
+      "Theo ABC"
+    ]
+  },
+  {
+    "type": "group",
+    "name": "Thể loại",
+    "filters": [
+      { "type": "genre", "name": "Action", "id": "action-37" },
+      { "type": "genre", "name": "Adventure", "id": "adventure-38" },
+      { "type": "genre", "name": "Anime", "id": "anime-39" },
+      { "type": "genre", "name": "Cổ Đại", "id": "co-dai-40" },
+      { "type": "genre", "name": "Comedy", "id": "comedy-41" },
+      { "type": "genre", "name": "Comic", "id": "comic-42" },
+      { "type": "genre", "name": "Detective", "id": "detective-43" },
+      { "type": "genre", "name": "Doujinshi", "id": "doujinshi-44" },
+      { "type": "genre", "name": "Drama", "id": "drama-45" },
+      { "type": "genre", "name": "Fantasy", "id": "fantasy-46" },
+      { "type": "genre", "name": "Gender Bender", "id": "gender-bender-47" },
+      { "type": "genre", "name": "Historical", "id": "historical-48" },
+      { "type": "genre", "name": "Horror", "id": "horror-49" },
+      { "type": "genre", "name": "Huyền Huyễn", "id": "huyen-huyen-50" },
+      { "type": "genre", "name": "Isekai", "id": "isekai-51" },
+      { "type": "genre", "name": "Josei", "id": "josei-52" },
+      { "type": "genre", "name": "Magic", "id": "magic-53" },
+      { "type": "genre", "name": "Manga", "id": "manga-81" },
+      { "type": "genre", "name": "Manhua", "id": "manhua-54" },
+      { "type": "genre", "name": "Manhwa", "id": "manhwa-55" },
+      { "type": "genre", "name": "Martial Arts", "id": "martial-arts-56" },
+      { "type": "genre", "name": "Mystery", "id": "mystery-57" },
+      { "type": "genre", "name": "Ngôn Tình", "id": "ngon-tinh-58" },
+      { "type": "genre", "name": "One shot", "id": "one-shot-59" },
+      { "type": "genre", "name": "Psychological", "id": "psychological-60" },
+      { "type": "genre", "name": "Romance", "id": "romance-61" },
+      { "type": "genre", "name": "School Life", "id": "school-life-62" },
+      { "type": "genre", "name": "Sci-fi", "id": "sci-fi-63" },
+      { "type": "genre", "name": "Seinen", "id": "seinen-64" },
+      { "type": "genre", "name": "Shoujo", "id": "shoujo-65" },
+      { "type": "genre", "name": "Shoujo Ai", "id": "shoujo-ai-66" },
+      { "type": "genre", "name": "Shounen", "id": "shounen-67" },
+      { "type": "genre", "name": "Shounen Ai", "id": "shounen-ai-68" },
+      { "type": "genre", "name": "Slice of life", "id": "slice-of-life-69" },
+      { "type": "genre", "name": "Sports", "id": "sports-70" },
+      { "type": "genre", "name": "Supernatural", "id": "supernatural-71" },
+      { "type": "genre", "name": "Tragedy", "id": "tragedy-72" },
+      { "type": "genre", "name": "Truyện Màu", "id": "truyen-mau-73" },
+      { "type": "genre", "name": "Webtoon", "id": "webtoon-74" },
+      { "type": "genre", "name": "Xuyên Không", "id": "xuyen-khong-75" },
+      { "type": "genre", "name": "Yuri", "id": "yuri-76" }
+    ]
+  }
+]
