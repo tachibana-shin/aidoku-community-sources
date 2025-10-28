@@ -57,11 +57,34 @@ fn get_instance() -> WPComicsSource {
 			"Hoàn Thành" => MangaStatus::Completed,
 			_ => MangaStatus::Unknown,
 		},
-		time_converter: |ago| {
-			StringRef::from(ago)
-				.0
-				.as_date("dd/MM/yyyy", None, Some("Asia/Ho_Chi_Minh"))
-				.unwrap_or(-1.0)
+		time_converter: |time_ago| {
+			let current_time = aidoku::std::current_date();
+			let time_arr = time_ago.split(' ').collect::<Vec<&str>>();
+			if time_arr.len() > 2 {
+				match time_arr[1] {
+					"giây" => current_time - time_arr[0].parse::<f64>().unwrap_or(0.0),
+					"phút" => current_time - time_arr[0].parse::<f64>().unwrap_or(0.0) * 60.0,
+					"giờ" => current_time - time_arr[0].parse::<f64>().unwrap_or(0.0) * 3600.0,
+					"ngày" => current_time - time_arr[0].parse::<f64>().unwrap_or(0.0) * 86400.0,
+					_ => current_time,
+				}
+			} else if *time_arr[0] == time_ago {
+				StringRef::from(time_ago)
+					.0
+					.as_date("dd/MM/yy", Some("en_US"), Some("Asia/Ho_Chi_Minh"))
+					.unwrap_or(0.0)
+			} else {
+				let modified_time = format!(
+					"{} {}/{}",
+					time_arr[0],
+					time_arr[1],
+					1970 + (current_time / 31536000.0) as i32
+				);
+				StringRef::from(modified_time)
+					.0
+					.as_date("HH:mm dd/MM/yyyy", Some("en_US"), Some("Asia/Ho_Chi_Minh"))
+					.unwrap_or(0.0)
+			}
 		},
 
 		next_page: ".page_redirect > a:nth-last-child(2) > p:not(.active)",
