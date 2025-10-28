@@ -25,6 +25,15 @@ fn get_instance() -> WPComicsSource {
 		status_mapping: status_map,
 		time_converter: convert_time,
 		manga_viewer_page_attr: "data-src",
+		manga_parse_id: |url| {
+			String::from(
+				url.split("truyen-tranh/")
+					.nth(1)
+					.and_then(|s| s.split('/').next())
+					.unwrap_or_default(),
+			)
+		},
+		chapter_parse_id: |url| String::from(url.trim_end_matches('/').rsplit('/').next().unwrap()),
 		..Default::default()
 	}
 }
@@ -72,14 +81,17 @@ fn get_manga_list(filters: Vec<Filter>, page: i32) -> Result<MangaPageResult> {
 		}
 	}
 	let instance = get_instance();
-	instance.get_manga_list(get_search_url(
-		instance.base_url.clone(),
-		title,
-		page,
-		category,
-		sort_by,
-		completed,
-	), None)
+	instance.get_manga_list(
+		get_search_url(
+			instance.base_url.clone(),
+			title,
+			page,
+			category,
+			sort_by,
+			completed,
+		),
+		None,
+	)
 }
 
 #[get_manga_listing]
@@ -89,17 +101,20 @@ fn get_manga_listing(listing: Listing, page: i32) -> Result<MangaPageResult> {
 
 #[get_manga_details]
 fn get_manga_details(id: String) -> Result<Manga> {
-	get_instance().get_manga_details(id)
+	get_instance().get_manga_details(format!("{}/truyen-tranh/{}", BASE_URL, id))
 }
 
 #[get_chapter_list]
 fn get_chapter_list(id: String) -> Result<Vec<Chapter>> {
-	get_instance().get_chapter_list(id)
+	get_instance().get_chapter_list(format!("{}/truyen-tranh/{}", BASE_URL, id))
 }
 
 #[get_page_list]
-fn get_page_list(_manga_id: String, chapter_id: String) -> Result<Vec<Page>> {
-	get_instance().get_page_list(chapter_id)
+fn get_page_list(manga_id: String, chapter_id: String) -> Result<Vec<Page>> {
+	get_instance().get_page_list(format!(
+		"{}/truyen-tranh/{}/{}",
+		BASE_URL, manga_id, chapter_id
+	))
 }
 
 #[modify_image_request]

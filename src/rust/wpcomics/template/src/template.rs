@@ -20,6 +20,7 @@ pub struct WPComicsSource {
 	pub manga_cell_title: &'static str,
 	pub manga_cell_image: &'static str,
 	pub manga_cell_image_attr: &'static str,
+	pub manga_parse_id: fn(String) -> String,
 
 	// https://{base_url}/{listing}{manga_listing_pagination}{page}{manga_listing_extension}
 	pub manga_listing_pagination: &'static str,
@@ -40,6 +41,7 @@ pub struct WPComicsSource {
 	pub chapter_skip_first: bool,
 	pub chapter_date_selector: &'static str,
 	pub chapter_anchor_selector: &'static str,
+	pub chapter_parse_id: fn(String) -> String,
 
 	pub manga_viewer_page: &'static str,
 	pub manga_viewer_page_attr: &'static str,
@@ -203,16 +205,16 @@ impl WPComicsSource {
 				.first()
 				.text()
 				.read();
-			let mut id = item_node
+			let mut url = item_node
 				.select(self.manga_cell_url)
 				.first()
 				.attr("href")
 				.read();
-			if !id.contains("http://") && !id.contains("https://") {
-				id = format!(
-					"{}{}{id}",
+			if !url.contains("http://") && !url.contains("https://") {
+				url = format!(
+					"{}{}{url}",
 					self.base_url,
-					if id.starts_with("/") { "" } else { "/" }
+					if url.starts_with("/") { "" } else { "/" }
 				);
 			}
 			let cover = if !self.manga_cell_image.is_empty() {
@@ -227,7 +229,7 @@ impl WPComicsSource {
 				String::new()
 			};
 			mangas.push(Manga {
-				id,
+				id: (self.manga_parse_id)(url),
 				cover,
 				title: (self.manga_details_title_transformer)(title),
 				..Default::default()
@@ -253,8 +255,8 @@ impl WPComicsSource {
 		self.get_manga_list(url, None)
 	}
 
-	pub fn get_manga_details(&self, id: String) -> Result<Manga> {
-		cache_manga_page(self, id.as_str());
+	pub fn get_manga_details(&self, url: String) -> Result<Manga> {
+		cache_manga_page(self, url.as_str());
 		let details = unsafe { Node::new(&CACHED_MANGA.clone().unwrap())? };
 		let title = details.select(self.manga_details_title).text().read();
 		let cover = append_protocol(details.select(self.manga_details_cover).attr("src").read());
@@ -287,13 +289,13 @@ impl WPComicsSource {
 			details.select(self.manga_details_status).text().read(),
 		));
 		Ok(Manga {
-			id: id.clone(),
+			id: (self.manga_parse_id)(url.clone()),
 			cover,
 			title: (self.manga_details_title_transformer)(title),
 			author,
 			artist: String::new(),
 			description,
-			url: id,
+			url,
 			categories,
 			status,
 			nsfw,
@@ -332,7 +334,7 @@ impl WPComicsSource {
 					chapter_url
 				);
 			}
-			let chapter_id = chapter_url.clone();
+			let chapter_id = (self.chapter_parse_id)(chapter_url.clone());
 			let mut chapter_title = chapter_node
 				.select(self.chapter_anchor_selector)
 				.text()
@@ -472,6 +474,7 @@ impl Default for WPComicsSource {
 			manga_cell_url: "figcaption > h3 > a",
 			manga_cell_image: "div.image > a > img",
 			manga_cell_image_attr: "data-original",
+			manga_parse_id: |url| url,
 
 			manga_listing_pagination: "?page=",
 			manga_listing_extension: "",
@@ -491,6 +494,7 @@ impl Default for WPComicsSource {
 			chapter_skip_first: false,
 			chapter_anchor_selector: "div.chapter > a",
 			chapter_date_selector: "div.col-xs-4",
+			chapter_parse_id: |url| url,
 
 			manga_viewer_page: "div.page-chapter > img",
 			manga_viewer_page_attr: "data-original",

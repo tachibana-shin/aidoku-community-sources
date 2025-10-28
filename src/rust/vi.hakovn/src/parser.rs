@@ -3,7 +3,7 @@ use alloc::string::ToString;
 use aidoku::{
 	Chapter, Manga, MangaContentRating, MangaPageResult, MangaStatus, MangaViewer, Page,
 	error::{AidokuError, AidokuErrorKind, Result},
-	prelude::{format, println},
+	prelude::{format},
 	std::{String, Vec, html::Node, net::Request},
 };
 
@@ -41,7 +41,15 @@ pub fn parse_search_page(document: Node) -> Result<MangaPageResult> {
 	for (_id, elem) in elems.enumerate() {
 		if let Ok(node) = elem.as_node() {
 			let url_elem = node.select(".series-title a").first();
-			let id = absolute_url(url_elem.attr("href").read(), BASE_URL.to_string());
+			let id = absolute_url(url_elem.attr("href").read(), BASE_URL.to_string())
+				.split_once("//")
+				.map(|(_, rest)| rest)
+				.unwrap()
+				.split_once('/')
+				.map(|(_, path)| path)
+				.unwrap()
+				.trim_start_matches('/')
+				.to_string();
 
 			manga.push(Manga {
 				id,
@@ -61,10 +69,9 @@ pub fn parse_search_page(document: Node) -> Result<MangaPageResult> {
 	})
 }
 
-pub fn parse_manga_details(id: String, document: Node) -> Result<Manga> {
+pub fn parse_manga_details(url: String, id: String, document: Node) -> Result<Manga> {
 	let title_elem = document.select(".series-name a");
 	let title = title_elem.text().read().to_string();
-	let url = id.clone();
 
 	let author_elem = document.select(".info-name:contains(Tác giả) + span");
 	let author = author_elem.text().read().trim().to_string();
@@ -122,7 +129,7 @@ pub fn parse_manga_details(id: String, document: Node) -> Result<Manga> {
 	})
 }
 
-pub fn parse_chapter_list(document: Node, root_url: String) -> Result<Vec<Chapter>> {
+pub fn parse_chapter_list(document: Node) -> Result<Vec<Chapter>> {
 	let volumes = document.select(".volume-list").array();
 	let mut chapters = Vec::with_capacity(volumes.len());
 
@@ -132,7 +139,7 @@ pub fn parse_chapter_list(document: Node, root_url: String) -> Result<Vec<Chapte
 
 			let title_raw = node.select(".sect-title").first().text().read();
 
-			let id = format!("{}#{}", root_url, title_raw);
+			let id = format!("{}", title_raw).to_string();
 
 			let mut chapter = idx as f32;
 			let title_parts = title_raw
@@ -182,8 +189,6 @@ fn extract_url_from_style(style: &str) -> Option<String> {
 }
 
 pub fn parse_page_list(document: Node, selector: &str, base_url: &str) -> Result<Vec<Page>> {
-	println!("{}", selector.to_string());
-
 	let page_elems = document.select(".volume-list").array().enumerate();
 	let mut chapters: Option<Node> = None;
 	let mut cover_url: Option<String> = None;
@@ -191,7 +196,6 @@ pub fn parse_page_list(document: Node, selector: &str, base_url: &str) -> Result
 		if let Ok(node) = volume.as_node() {
 			let header_text = node.select("header").first().text().read();
 
-			println!("title = '{}' , selector = '{}'", header_text, selector);
 			if header_text.contains(selector) {
 				cover_url = extract_url_from_style(
 					&node.select(".content.img-in-ratio").attr("style").read(),
@@ -274,8 +278,6 @@ pub fn parse_page_list(document: Node, selector: &str, base_url: &str) -> Result
 			});
 		}
 	}
-
-	println!("pagess  = {}", pages.len());
 
 	Ok(pages)
 }

@@ -70,6 +70,14 @@ fn get_instance() -> WPComicsSource {
 		manga_cell_url: ".book_info .qtip a",
 		manga_cell_image: ".book_avatar img",
 		manga_cell_image_attr: "abs:src",
+		manga_parse_id: |url| {
+			String::from(
+				url.split("truyen-tranh/")
+					.nth(1)
+					.and_then(|s| s.split('/').next())
+					.unwrap_or_default(),
+			)
+		},
 
 		manga_listing_pagination: "/trang-",
 		manga_listing_extension: ".html",
@@ -194,11 +202,17 @@ fn get_manga_listing(listing: Listing, page: i32) -> Result<MangaPageResult> {
 
 #[get_manga_details]
 fn get_manga_details(id: String) -> Result<Manga> {
-	get_instance().get_manga_details(get_url_with_proxy(&id))
+	get_instance().get_manga_details(get_url_with_proxy(&format!(
+		"{}/truyen-tranh/{}",
+		get_base_url().unwrap(),
+		id
+	)))
 }
 
 #[get_chapter_list]
 fn get_chapter_list(id: String) -> Result<Vec<Chapter>> {
+	let url = get_url_with_proxy(&format!("{}/truyen-tranh/{}", get_base_url().unwrap(), id));
+
 	let mut chapters: Vec<Chapter> = Vec::new();
 
 	// for i in 1..=5 {
@@ -215,7 +229,7 @@ fn get_chapter_list(id: String) -> Result<Vec<Chapter>> {
 	//     });
 	// }
 
-	let mut req = Request::new(&get_url_with_proxy(&id), HttpMethod::Get);
+	let mut req = Request::new(&get_url_with_proxy(&url), HttpMethod::Get);
 	req = req.header("User-Agent", USER_AGENT);
 
 	let html = req.html()?;
@@ -244,7 +258,13 @@ fn get_chapter_list(id: String) -> Result<Vec<Chapter>> {
 				chapter_url
 			);
 		}
-		let chapter_id = chapter_url.clone();
+		let chapter_id = String::from(
+			chapter_url
+				.rsplit_once("-chap-")
+				.map(|(_, tail)| tail.trim_end_matches(".html"))
+				.unwrap(),
+		);
+
 		let mut chapter_title = chapter_node.select("div.name-chap a").text().read();
 		let title_raw = chapter_title.clone();
 		let numbers = extract_f32_from_string(String::from(title), String::from(&chapter_title));
@@ -275,7 +295,7 @@ fn get_chapter_list(id: String) -> Result<Vec<Chapter>> {
 		chapter_title = format!("{}", chapter_title.trim());
 
 		chapters.push(Chapter {
-			id: get_url_with_proxy(&chapter_id),
+			id: chapter_id,
 			title: String::from(if chapter_title.is_empty() {
 				title_raw.trim()
 			} else {
@@ -294,10 +314,17 @@ fn get_chapter_list(id: String) -> Result<Vec<Chapter>> {
 }
 
 #[get_page_list]
-fn get_page_list(_manga_id: String, chapter_id: String) -> Result<Vec<Page>> {
+fn get_page_list(manga_id: String, chapter_id: String) -> Result<Vec<Page>> {
 	let mut pages: Vec<Page> = Vec::new();
 
-	let mut req = Request::new(&get_url_with_proxy(&chapter_id), HttpMethod::Get);
+	let url = get_url_with_proxy(&format!(
+		"{}/truyen-tranh/{}-chap-{}.html",
+		get_base_url().unwrap(),
+		manga_id,
+		chapter_id
+	));
+
+	let mut req = Request::new(url, HttpMethod::Get);
 	req = req.header("User-Agent", USER_AGENT);
 
 	let html = req.html()?;
@@ -314,6 +341,13 @@ fn get_page_list(_manga_id: String, chapter_id: String) -> Result<Vec<Page>> {
 		if page_url.is_empty() {
 			page_url = if page_node.has_attr("data-cdn") {
 				page_node.attr("data-cdn").read()
+			} else {
+				page_url
+			}
+		}
+		if page_url.is_empty() {
+			page_url = if page_node.has_attr("data-src") {
+				page_node.attr("data-src").read()
 			} else {
 				page_url
 			}

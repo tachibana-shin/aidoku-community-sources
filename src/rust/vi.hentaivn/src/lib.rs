@@ -17,12 +17,11 @@ use parser::{
 };
 use search::get_search_url;
 
-pub static BASE_URL: &str = "https://hentaivn.cx";
+pub static BASE_URL: &str = "https://hentaivn.website";
 
 #[get_manga_list]
 fn get_manga_list(filters: Vec<Filter>, page: i32) -> Result<MangaPageResult> {
 	let search_url = get_search_url(filters, page);
-	println!("url == {}", search_url);
 	let req = Request::get(&search_url).header("Referer", BASE_URL);
 	parse_search_page(req.html()?)
 }
@@ -45,20 +44,21 @@ fn get_manga_listing(listing: Listing, page: i32) -> Result<MangaPageResult> {
 
 #[get_manga_details]
 fn get_manga_details(id: String) -> Result<Manga> {
-	let url = encode_uri(format!("{BASE_URL}/{id}"));
+	let url = encode_uri(format!("{BASE_URL}/truyenhentai/{id}/"));
 	let req = Request::get(url).header("Referer", BASE_URL);
 	parse_manga_details(id, req.html()?)
 }
 
 #[get_chapter_list]
 fn get_chapter_list(id: String) -> Result<Vec<Chapter>> {
-	let req = Request::get(id).header("Referer", BASE_URL);
+	let req = Request::get(format!("{BASE_URL}/truyenhentai/{id}/")).header("Referer", BASE_URL);
 	parse_chapter_list(req.html()?)
 }
 
 #[get_page_list]
-fn get_page_list(_: String, id: String) -> Result<Vec<Page>> {
-	let req = Request::get(id).header("Referer", BASE_URL);
+fn get_page_list(h_id: String, id: String) -> Result<Vec<Page>> {
+	let req =
+		Request::get(format!("{BASE_URL}/truyenhentai/{h_id}/{id}/")).header("Referer", BASE_URL);
 
 	parse_page_list(req.html()?, Some(".wp-manga-chapter-img"))
 }

@@ -7,7 +7,6 @@ mod search;
 use aidoku::{
 	Chapter, DeepLink, Filter, Listing, Manga, MangaPageResult, Page,
 	error::{AidokuError, Result},
-	helpers::uri::encode_uri,
 	prelude::*,
 	std::{String, Vec, html::Node, net::Request},
 };
@@ -79,24 +78,21 @@ fn get_manga_listing(listing: Listing, page: i32) -> Result<MangaPageResult> {
 
 #[get_manga_details]
 fn get_manga_details(id: String) -> Result<Manga> {
-	parse_manga_details(id.clone(), req_with_cache(id))
+	let url = format!("{}/{}", BASE_URL, id);
+
+	parse_manga_details(url.clone(), id, req_with_cache(url))
 }
 
 #[get_chapter_list]
 fn get_chapter_list(id: String) -> Result<Vec<Chapter>> {
-	parse_chapter_list(req_with_cache(id.clone()), id)
+	let id = format!("{}/{}", BASE_URL, id);
+
+	parse_chapter_list(req_with_cache(id.clone()))
 }
 
 #[get_page_list]
-fn get_page_list(_: String, id: String) -> Result<Vec<Page>> {
-	let (url, name) = match id.split_once('#') {
-		Some((u, n)) => (u.to_string(), n.to_string()),
-		None => (id.to_string(), String::new()),
-	};
-
-	let url = encode_uri(url);
-
-	println!("Cache invalidated for {url}");
+fn get_page_list(path: String, name: String) -> Result<Vec<Page>> {
+	let url = format!("{}/{}", BASE_URL, path);
 
 	let document = req_with_cache(url);
 

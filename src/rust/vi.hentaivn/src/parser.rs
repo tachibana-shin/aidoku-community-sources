@@ -1,41 +1,12 @@
 use alloc::string::ToString;
 
 use aidoku::{
+	Chapter, Manga, MangaContentRating, MangaPageResult, MangaStatus, MangaViewer, Page,
 	error::Result,
 	helpers::{cfemail::decode_cfemail, node::NodeHelpers},
 	prelude::format,
-	std::{html::Node, String, Vec},
-	Chapter, Manga, MangaContentRating, MangaPageResult, MangaStatus, MangaViewer, Page,
+	std::{String, Vec, html::Node},
 };
-
-use crate::BASE_URL;
-
-
-fn absolute_url(url: String, base_url: String) -> String {
-	if url.starts_with("http://") || url.starts_with("https://") {
-		url
-	} else if url.starts_with('/') {
-		if let Some(pos) = base_url.find("://") {
-			if let Some(slash_pos) = base_url[pos + 3..].find('/') {
-				let domain = &base_url[..pos + 3 + slash_pos + pos + 3];
-				format!("{}{}", domain, url)
-			} else {
-				format!("{}{}", base_url, url)
-			}
-		} else {
-			format!("{}{}", base_url, url)
-		}
-	} else {
-		let mut new_base = base_url;
-		if !new_base.ends_with('/') {
-			new_base.push('/');
-		}
-		new_base.push_str(&url);
-		new_base
-	}
-}
-
-
 
 pub fn parse_search_page(document: Node) -> Result<MangaPageResult> {
 	decode_cfemail(&document);
@@ -47,8 +18,14 @@ pub fn parse_search_page(document: Node) -> Result<MangaPageResult> {
 	for elem in elems {
 		if let Ok(node) = elem.as_node() {
 			let url_elem = node.select("a");
-			let id = absolute_url(url_elem.attr("href").read(), BASE_URL.to_string());
-
+			let id = url_elem
+				.attr("href")
+				.read()
+				.split("truyenhentai/")
+				.nth(1)
+				.and_then(|s| s.split('/').next())
+				.unwrap_or_default()
+				.to_string();
 			let title_elem = node.select("h3.h4 > a");
 
 			let img_elem = node.select(".tab-thumb img");
@@ -82,8 +59,14 @@ pub fn parse_new_or_complete_page(document: Node) -> Result<MangaPageResult> {
 	for elem in elems {
 		if let Ok(node) = elem.as_node() {
 			let url_elem = node.select("div.box-description a:first-child");
-			let id = url_elem.attr("href").read().replace('/', "");
-
+			let id = url_elem
+				.attr("href")
+				.read()
+				.split("truyenhentai/")
+				.nth(1)
+				.and_then(|s| s.split('/').next())
+				.unwrap_or_default()
+				.to_string();
 			let tag_elems = node.select("div.box-description b.info:contains(Thể Loại) ~ span");
 			let tags = tag_elems
 				.array()
@@ -170,16 +153,19 @@ pub fn parse_manga_details(id: String, document: Node) -> Result<Manga> {
 
 			for (key_ref, value_ref) in keys.array().zip(values.array()) {
 				if let Ok(key_node) = key_ref.as_node()
-				   && let Ok(value_node) = value_ref.as_node() {
+					&& let Ok(value_node) = value_ref.as_node()
+				{
 					let key = key_node.text().read();
 
-					if ["Tác giả", "Tình Trạng", "Thể Loại", "Nội dung"].iter().any(|k| key.contains(k)) {
+					if ["Tác giả", "Tình Trạng", "Thể Loại", "Nội dung"]
+						.iter()
+						.any(|k| key.contains(k))
+					{
 						continue;
 					}
 
 					let value = value_node.text().read();
 					description.push_str(&format!("{key} {value}\n"));
-
 				}
 			}
 		}
@@ -213,7 +199,14 @@ pub fn parse_chapter_list(document: Node) -> Result<Vec<Chapter>> {
 	for (idx, row) in rows.rev().enumerate() {
 		if let Ok(node) = row.as_node() {
 			let url_elem = node.select("a");
-			let id = absolute_url(url_elem.attr("href").read(), BASE_URL.to_string());
+			let id = url_elem
+				.attr("href")
+				.read()
+				.split("truyenhentai/")
+				.nth(1)
+				.and_then(|s| s.split('/').nth(1))
+				.unwrap_or_default()
+				.to_string();
 
 			let title_raw = url_elem.text().read();
 
