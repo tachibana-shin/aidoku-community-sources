@@ -112,7 +112,6 @@ fn get_instance() -> WPComicsSource {
 		chapter_date_selector: "div.time-chap",
 
 		page_url_transformer: |url| url,
-		vinahost_protection: true,
 		user_agent: Some(USER_AGENT),
 		..Default::default()
 	}

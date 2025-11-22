@@ -49,14 +49,11 @@ pub struct WPComicsSource {
 	pub manga_viewer_page_url_suffix: &'static str,
 	pub page_url_transformer: fn(String) -> String,
 
-	pub vinahost_protection: bool,
-
 	pub user_agent: Option<&'static str>,
 }
 
 static mut CACHED_MANGA_ID: Option<String> = None;
 static mut CACHED_MANGA: Option<Vec<u8>> = None;
-static mut VINAHOST_COOKIE: Option<String> = None;
 
 fn cache_manga_page(data: &WPComicsSource, url: &str) {
 	if unsafe { CACHED_MANGA_ID.is_some() } && unsafe { CACHED_MANGA_ID.clone().unwrap() } == url {
@@ -64,86 +61,17 @@ fn cache_manga_page(data: &WPComicsSource, url: &str) {
 	}
 
 	unsafe {
-		if data.vinahost_protection {
-			CACHED_MANGA = Some(data.request_vinahost(url, None).data());
-		} else {
 			let mut req = Request::new(url, HttpMethod::Get);
 			if let Some(user_agent) = data.user_agent {
 				req = req.header("User-Agent", user_agent);
 			}
 			CACHED_MANGA = Some(req.data());
-		}
 		CACHED_MANGA_ID = Some(String::from(url));
 	};
 }
 
 impl WPComicsSource {
-	pub fn request_vinahost(&self, url: &str, headers: Option<&[(&str, &str)]>) -> Request {
-		if unsafe { VINAHOST_COOKIE.is_some() } {
-			let mut req = Request::new(url, HttpMethod::Get).header(
-				"Cookie",
-				unsafe { VINAHOST_COOKIE.clone().unwrap() }.as_str(),
-			);
-			if let Some(user_agent) = self.user_agent {
-				req = req.header("User-Agent", user_agent);
-			}
-			if let Some(extra_headers) = headers {
-				for (key, value) in extra_headers {
-					req = req.header(key, value);
-				}
-			}
-			return req;
-		}
-
-		// Vinahost の保護が有効な場合
-		if self.vinahost_protection {
-			let mut req = Request::new(url, HttpMethod::Get);
-			if let Some(user_agent) = self.user_agent {
-				req = req.header("User-Agent", user_agent);
-			}
-			if let Some(extra_headers) = headers {
-				for (key, value) in extra_headers {
-					req = req.header(key, value);
-				}
-			}
-
-			// 保護ページを取得して Cookie を抽出
-			if let Ok(blocked_html) = req.html() {
-				let script = blocked_html.select("script").html().read();
-				let cookie = script
-					.replace("document.cookie=\"", "")
-					.replace("\";window.location.reload(true);", "")
-					.replace("\"+\"", "");
-				unsafe {
-					VINAHOST_COOKIE = Some(cookie);
-				};
-				let mut req = Request::new(url, HttpMethod::Get).header(
-					"Cookie",
-					unsafe { VINAHOST_COOKIE.clone().unwrap() }.as_str(),
-				);
-				if let Some(user_agent) = self.user_agent {
-					req = req.header("User-Agent", user_agent);
-				}
-				if let Some(extra_headers) = headers {
-					for (key, value) in extra_headers {
-						req = req.header(key, value);
-					}
-				}
-				return req;
-			} else {
-				let mut req = Request::new(url, HttpMethod::Get);
-				if let Some(user_agent) = self.user_agent {
-					req = req.header("User-Agent", user_agent);
-				}
-				if let Some(extra_headers) = headers {
-					for (key, value) in extra_headers {
-						req = req.header(key, value);
-					}
-				}
-				return req;
-			}
-		}
-
+	pub fn create_request(&self, url: &str, headers: Option<&[(&str, &str)]>) -> Request {
 		// 通常のリクエスト
 		let mut req = Request::new(url, HttpMethod::Get);
 		if let Some(cookie) = &self.cookie {
@@ -197,7 +125,7 @@ impl WPComicsSource {
 	) -> Result<MangaPageResult> {
 		let mut has_next_page = !self.next_page.is_empty();
 
-		let html = self.request_vinahost(&search_url, headers).html()?;
+		let html = self.create_request(&search_url, headers).html()?;
 
 		let node = html.select(self.manga_cell);
 		let elems = node.array();
@@ -389,7 +317,7 @@ impl WPComicsSource {
 	pub fn get_page_list(&self, chapter_id: String) -> Result<Vec<Page>> {
 		let mut pages: Vec<Page> = Vec::new();
 		let url = format!("{}{}", &chapter_id, self.manga_viewer_page_url_suffix);
-		let html = self.request_vinahost(&url, None).html()?;
+		let html = self.create_request(&url, None).html()?;
 		for (at, page) in html.select(self.manga_viewer_page).array().enumerate() {
 			let page_node = page.as_node().expect("node array");
 			let mut page_url = page_node.attr(self.manga_viewer_page_attr).read();
@@ -505,8 +433,6 @@ impl Default for WPComicsSource {
 			manga_viewer_page_attr: "data-original",
 			manga_viewer_page_url_suffix: "",
 			page_url_transformer: |url| url,
-
-			vinahost_protection: false,
 
 			user_agent: None,
 		}
