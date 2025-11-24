@@ -23,3 +23,6 @@ imp = "0.1.0"
 spin = { version = "0.10.0", default-features = false, features = ["once"] }
 time = { version = "0.3", default-features = false, features = ["alloc", "parsing"] }
 url = { version = "2.5.7", default-features = false }
+
+[build-dependencies]
+sha2 = "0.10"
