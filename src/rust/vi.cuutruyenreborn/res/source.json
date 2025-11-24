@@ -1,0 +1,14 @@
+{
+	"info": {
+		"id": "vi.cuutruyenreborn",
+		"lang": "vi",
+		"name": "Cứu Truyện Reborn",
+		"version": 1,
+		"url": "https://cuutruyen.nuxt.dev/"
+	},
+	"listings": [
+		{
+			"name": "Mới cập nhật"
+		}
+	]
+}

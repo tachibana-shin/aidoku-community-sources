@@ -66,6 +66,9 @@ jobs:
         sudo chmod +x /usr/local/bin/sccache
     -
       name: Build Rust sources
+      env:
+        VICUUTRUYENREBORN_MASTER_KEY: ${{ secrets.VICUUTRUYENREBORN_MASTER_KEY }}
+        VICUUTRUYENREBORN_SHIFT_KEY: ${{ secrets.VICUUTRUYENREBORN_SHIFT_KEY }}
       run: |
         for src in ./src/rust/*; do
           (

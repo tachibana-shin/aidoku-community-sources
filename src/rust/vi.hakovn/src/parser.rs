@@ -3,7 +3,7 @@ use alloc::string::ToString;
 use aidoku::{
 	Chapter, Manga, MangaContentRating, MangaPageResult, MangaStatus, MangaViewer, Page,
 	error::{AidokuError, AidokuErrorKind, Result},
-	prelude::{format},
+	prelude::format,
 	std::{String, Vec, html::Node, net::Request},
 };
 
@@ -131,38 +131,73 @@ pub fn parse_manga_details(url: String, id: String, document: Node) -> Result<Ma
 
 pub fn parse_chapter_list(document: Node) -> Result<Vec<Chapter>> {
 	let volumes = document.select(".volume-list").array();
-	let mut chapters = Vec::with_capacity(volumes.len());
+	let mut chapters: Vec<Chapter> = Vec::with_capacity(volumes.len());
 
-	for (idx, volume) in volumes.rev().enumerate() {
+	for (_idx, volume) in volumes.rev().enumerate() {
 		if let Ok(node) = volume.as_node() {
 			let url_elem = node.select(".chapter-name a").first();
 
 			let title_raw = node.select(".sect-title").first().text().read();
+			let completed = title_raw.to_lowercase().contains("(hoàn thành)");
 
 			let id = format!("{}", title_raw).to_string();
+			let list_chapters = node.select(".list-chapters > li").array();
 
-			let mut chapter = idx as f32;
-			let title_parts = title_raw
-				.split(|v| v == '-' || v == ':')
-				.collect::<Vec<_>>();
+			if !completed {
+				if list_chapters.len() > 0 {
+					for ele in list_chapters {
+						let ele = ele.as_node().unwrap().select("a").first();
 
-			let title = if title_parts.len() > 1 {
-				title_parts[1].trim().to_string()
-			} else {
-				title_raw.clone()
-			};
+						let id = absolute_url(ele.attr("href").read(), BASE_URL.to_string())
+							.split_once("//")
+							.map(|(_, rest)| rest)
+							.unwrap()
+							.split_once('/')
+							.map(|(_, path)| path)
+							.unwrap()
+							.trim_start_matches('/')
+							.to_string();
+						let title = format!("[Con] {} - {}", title_raw, ele.text().read());
 
-			if title_parts[0].contains("Tập") {
-				let chapter_raw = title_parts[0]
-					.split(char::is_whitespace)
-					.last()
-					.expect("chapter number");
-				chapter = chapter_raw.parse::<f32>().unwrap_or(idx as f32);
+						chapters.push(Chapter {
+							id: format!("#{id}"),
+							// volume,
+							title,
+							date_updated: 0.0,
+							url: absolute_url(ele.attr("href").read(), BASE_URL.to_string()),
+							..Default::default()
+						});
+					}
+
+					continue;
+				}
 			}
+
+			// let mut volume = idx as f32;
+			// let title_parts = title_raw
+			// .split(|v| v == '-' || v == ':')
+			// .collect::<Vec<_>>();
+
+			let title = if list_chapters.len() > 0 {
+				title_raw.clone()
+			} else {
+				format!("[Pre]: {}", title_raw)
+			}; // if title_parts.len() > 1 {
+			// 	title_parts[1].trim().to_string()
+			// } else {
+			// };
+
+			// if title_parts[0].contains("Tập") || title_parts[0].contains("Quyển") {
+			// 	let chapter_raw = title_parts[0]
+			// 		.split(char::is_whitespace)
+			// 		.last()
+			// 		.expect("chapter number");
+			// 	volume = chapter_raw.parse::<f32>().unwrap_or(idx as f32);
+			// }
 
 			chapters.push(Chapter {
 				id,
-				chapter,
+				// volume,
 				title,
 				date_updated: 0.0,
 				url: absolute_url(url_elem.attr("href").read(), BASE_URL.to_string()),
@@ -188,20 +223,44 @@ fn extract_url_from_style(style: &str) -> Option<String> {
 	Some(url.to_string())
 }
 
-pub fn parse_page_list(document: Node, selector: &str, base_url: &str) -> Result<Vec<Page>> {
-	let page_elems = document.select(".volume-list").array().enumerate();
+pub fn parse_page_list(
+	document: Node,
+	selector: &str,
+	base_url: &str,
+	is_single: bool,
+) -> Result<Vec<Page>> {
 	let mut chapters: Option<Node> = None;
 	let mut cover_url: Option<String> = None;
-	for (_index, volume) in page_elems {
-		if let Ok(node) = volume.as_node() {
-			let header_text = node.select("header").first().text().read();
 
-			if header_text.contains(selector) {
-				cover_url = extract_url_from_style(
-					&node.select(".content.img-in-ratio").attr("style").read(),
-				);
-				chapters = Some(node.select(".list-chapters > li a"));
-				break;
+	let page_elems = document.select(".volume-list").array().enumerate();
+	if is_single {
+		// selector is name is path
+		let anchor = document.select(format!("a[href=\"{}\"]", selector));
+		let chapter_html = anchor.outer_html().read();
+		chapters = Some(anchor);
+
+		for (_index, volume) in page_elems {
+			if let Ok(node) = volume.as_node() {
+				if node.html().read().contains(selector) {
+					cover_url = extract_url_from_style(
+						&node.select(".content.img-in-ratio").attr("style").read(),
+					);
+					break;
+				}
+			}
+		}
+	} else {
+		for (_index, volume) in page_elems {
+			if let Ok(node) = volume.as_node() {
+				let header_text = node.select("header").first().text().read();
+
+				if header_text.contains(selector) {
+					cover_url = extract_url_from_style(
+						&node.select(".content.img-in-ratio").attr("style").read(),
+					);
+					chapters = Some(node.select(".list-chapters > li a"));
+					break;
+				}
 			}
 		}
 	}
@@ -217,7 +276,7 @@ pub fn parse_page_list(document: Node, selector: &str, base_url: &str) -> Result
 	pages.push(Page {
 		text: "novel".to_string(),
 		index: -1,
-		url: cover_url.unwrap(),
+		url: cover_url.unwrap_or("".to_string()),
 		base64: format!(
 			"{} - {}",
 			document.select(".series-name a").text().read(),
@@ -231,12 +290,10 @@ pub fn parse_page_list(document: Node, selector: &str, base_url: &str) -> Result
 
 			let req = Request::get(&url).header("Referer", base_url);
 
-			// Try-catch kiểu Rust cho request
 			let document = match req.html() {
 				Ok(doc) => doc,
-				Err(e) => {
-					println!("[ERROR] Failed to fetch HTML for {}: {:?}", url, e);
-					continue; // bỏ qua và sang chapter tiếp theo
+				Err(_e) => {
+					continue;
 				}
 			};
 

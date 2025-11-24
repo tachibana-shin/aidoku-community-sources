@@ -94,9 +94,15 @@ fn get_chapter_list(id: String) -> Result<Vec<Chapter>> {
 fn get_page_list(path: String, name: String) -> Result<Vec<Page>> {
 	let url = format!("{}/{}", BASE_URL, path);
 
-	let document = req_with_cache(url);
+	let is_single = name.starts_with("#");
 
-	parse_page_list(document, &name, BASE_URL)
+	let document = if is_single {
+		req_with_cache(format!("{}/{}", BASE_URL, &name[1..]))
+	} else {
+		req_with_cache(url)
+	};
+
+	parse_page_list(document, &name, BASE_URL, is_single)
 }
 
 #[modify_image_request]
