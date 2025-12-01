@@ -62,11 +62,11 @@ fn cache_manga_page(data: &WPComicsSource, url: &str) {
 	}
 
 	unsafe {
-			let mut req = Request::new(url, HttpMethod::Get);
-			if let Some(user_agent) = data.user_agent {
-				req = req.header("User-Agent", user_agent);
-			}
-			CACHED_MANGA = Some(req.data());
+		let mut req = Request::new(url, HttpMethod::Get);
+		if let Some(user_agent) = data.user_agent {
+			req = req.header("User-Agent", user_agent);
+		}
+		CACHED_MANGA = Some(req.data());
 		CACHED_MANGA_ID = Some(String::from(url));
 	};
 }
@@ -192,7 +192,17 @@ impl WPComicsSource {
 		cache_manga_page(self, url.as_str());
 		let details = unsafe { Node::new(&CACHED_MANGA.clone().unwrap())? };
 		let title = details.select(self.manga_details_title).text().read();
-		let cover = append_protocol(details.select(self.manga_details_cover).attr(self.manga_details_cover_attr).read());
+		let mut cover = details
+			.select(self.manga_details_cover)
+			.attr(self.manga_details_cover_attr)
+			.read();
+
+		if cover.starts_with("/") {
+			cover = format!("{}{}", self.base_url, cover).replace("//", "/");
+		}
+
+		let cover = append_protocol(cover);
+
 		let author = (self.manga_details_author_transformer)(
 			details.select(self.manga_details_author).text().read(),
 		);

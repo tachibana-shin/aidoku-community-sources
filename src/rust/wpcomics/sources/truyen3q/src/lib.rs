@@ -100,7 +100,7 @@ fn get_instance() -> WPComicsSource {
 
 		manga_details_title: "div.book_other h1[itemprop=name]",
 		manga_details_cover: "div.book_avatar img",
-		manga_details_cover_attr: "abs:src",
+		manga_details_cover_attr: "src",
 		manga_details_author: "li.author.row p.col-xs-9",
 		manga_details_description: "div.story-detail-info.detail-content",
 		manga_details_tags: "ul.list01 > li",
